@@ -1,0 +1,49 @@
+version: '3.8'
+
+services:
+  mssql:
+    image: mcr.microsoft.com/azure-sql-edge:latest
+    environment:
+      - ACCEPT_EULA=Y
+      - MSSQL_SA_PASSWORD=Password.1
+    ports:
+      - "1433:1433"
+    healthcheck:
+      test: /opt/mssql-tools/bin/sqlcmd -S localhost -U SA -P "$$MSSQL_SA_PASSWORD" -Q "SELECT 1" || exit 1
+      interval: 10s
+      timeout: 3s
+      retries: 10
+      start_period: 10s
+
+  sqlcmd:
+    image: mcr.microsoft.com/mssql-tools:latest
+    stdin_open: true
+    command: /opt/mssql_scripts/init.sh
+    volumes:
+      - ./scripts:/opt/mssql_scripts
+    depends_on:
+      - mssql
+
+  mailhog:
+    image: mailhog/mailhog
+    logging:
+      driver: 'none'  # disable saving logs
+    ports:
+      - "1025:1025" # smtp server
+      - "8025:8025" # web ui
+
+  service:
+    build: .
+    ports:
+      - "8080:8080"
+    environment:
+      PORT: "8080"
+      API_SECRET: "f925b86e61c457d15efed120eed9374c1298ae2f66cddc03dd8267cd337e2f26"
+      TOKEN_HOUR_LIFESPAN: 1
+      DATABASE_URL: "server=mssql;user id=SA;password=Password.1;port=1433;database=master"
+      MAILHOG_HOST: "mailhog"
+    depends_on:
+      mssql:
+        condition: service_healthy
+      mailhog:
+        condition: service_started

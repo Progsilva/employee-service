@@ -8,6 +8,7 @@ services:
       - MSSQL_SA_PASSWORD=Password.1
     ports:
       - "1433:1433"
+    hostname: mssql
     healthcheck:
       test: /opt/mssql-tools/bin/sqlcmd -S localhost -U SA -P "$$MSSQL_SA_PASSWORD" -Q "SELECT 1" || exit 1
       interval: 10s
@@ -22,7 +23,8 @@ services:
     volumes:
       - ./scripts:/opt/mssql_scripts
     depends_on:
-      - mssql
+       mssql:
+        condition: service_healthy
 
   mailhog:
     image: mailhog/mailhog
